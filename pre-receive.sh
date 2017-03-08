@@ -7,7 +7,7 @@
 #
 # Author: Christoph Hack <chack@mgit.at>
 # Copyright (c) 2017 mgIT GmbH. All rights reserved.
-# Distributed under the Simplified BSD License.
+# Distributed under the Apache License. See LICENSE for details.
 #
 set -o pipefail
 
@@ -116,6 +116,8 @@ function find_ancestor() {
   done
 
   # select first fork point
+  # in the very rare case that multiple fork points are found that are not
+  # related to each other, simple choose the first one as a starting point.
   if [[ -z "$fps" ]]; then
     return 1
   fi
