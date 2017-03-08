@@ -14,7 +14,7 @@ Installation
 License
 -------
 
-git-max-filesize is distributed under the Apache License:, Version 2.0.
+git-max-filesize is distributed under the Apache License. See LICENSE for details.
  
 > Copyright 2017 mgIT GmbH.
 >
