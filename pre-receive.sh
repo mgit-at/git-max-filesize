@@ -5,8 +5,9 @@
 # git pre-receive hook to reject large files that should be commited
 # via git-lfs (large file support) instead.
 #
-# Copyright (c) 2017 by Christoph Hack <chack@mgit.at>
-# All rights reserved. Distributed under the Simplified BSD License.
+# Author: Christoph Hack <chack@mgit.at>
+# Copyright (c) 2017 mgIT GmbH. All rights reserved.
+# Distributed under the Simplified BSD License.
 #
 set -o pipefail
 
