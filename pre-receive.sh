@@ -11,12 +11,29 @@
 #
 set -o pipefail
 
+readonly DEFAULT_MAXSIZE="5242880" # 5MB
+readonly CONFIG_NAME="hooks.maxfilesize"
 readonly NULLSHA="0000000000000000000000000000000000000000"
-readonly MAXSIZE="5242880" # 5MB
+readonly EXIT_SUCCESS="0"
+readonly EXIT_FAILURE="1"
 
 # main entry point
 function main() {
-  local status="0"
+  local status="$EXIT_SUCCESS"
+
+  # get maximum filesize (from repository-specific config)
+  local maxsize
+  maxsize="$(get_maxsize)"
+  if [[ "$?" != 0 ]]; then
+    echo "failed to get ${CONFIG_NAME} from config"
+    exit "$EXIT_FAILURE"
+  fi
+
+  # skip this hook entirely if maxsize is 0.
+  if [[ "$maxsize" == 0 ]]; then
+    cat > /dev/null
+    exit "$EXIT_SUCCESS"
+  fi
 
   # read lines from stdin (format: "<oldref> <newref> <refname>\n")
   local oldref
@@ -47,7 +64,7 @@ function main() {
     local large_files
     large_files="$(git rev-list --objects "$target" | \
       git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize) %(rest)' | \
-      awk -v maxbytes="$MAXSIZE" '$3 > maxbytes { print $4 }')"
+      awk -v maxbytes="$maxsize" '$3 > maxbytes { print $4 }')"
     if [[ "$?" != 0 ]]; then
       echo "failed to check for large files in ref ${refname}"
       continue
@@ -57,17 +74,17 @@ function main() {
       if [[ "$status" == 0 ]]; then
         echo ""
         echo "-------------------------------------------------------------------------"
-        echo "Your push was rejected because it contains files larger than $(numfmt --to=iec "$MAXSIZE")."
+        echo "Your push was rejected because it contains files larger than $(numfmt --to=iec "$maxsize")."
         echo "Please use https://git-lfs.github.com/ to store larger files."
         echo "-------------------------------------------------------------------------"
         echo ""
         echo "Offending files:"
-        status="1"
+        status="$EXIT_FAILURE"
       fi
       echo " - ${file} (ref: ${refname})"
     done
   done
-  
+
   exit "$status"
 }
 
@@ -79,7 +96,7 @@ function find_ancestor() {
   local refs
   refs="$(git show-ref --heads -s)"
   if [[ "$?" != 0 ]]; then
-    return 1
+    return "$EXIT_FAILURE"
   fi
 
   # check existing references for possible fork points
@@ -119,10 +136,24 @@ function find_ancestor() {
   # in the very rare case that multiple fork points are found that are not
   # related to each other, simple choose the first one as a starting point.
   if [[ -z "$fps" ]]; then
-    return 1
+    return "$EXIT_FAILURE"
   fi
   printf "%s\n" $fps | head -n 1
-  return 0
+  return "$EXIT_SUCCESS"
+}
+
+# get the maximum filesize configured for this repository or the default
+# value if no specific option has been set. Suffixes like 5k, 5m, 5g, etc.
+# can be used (see git config --int).
+function get_maxsize() {
+  local value;
+  value="$(git config --int "$CONFIG_NAME")"
+  if [[ "$?" != 0 ]] || [[ -z "$value" ]]; then
+    echo "$DEFAULT_MAXSIZE"
+    return "$EXIT_SUCCESS"
+  fi
+  echo "$value"
+  return "$EXIT_SUCCESS"
 }
 
 main

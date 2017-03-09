@@ -8,14 +8,26 @@ A pre-receive hook for git to enforce the usage of [git-lfs][1] by rejecting fil
 Installation
 ------------
 
+To install this hook, simply copy the script to the hooks directory of your
+repo (the script must be called "pre-receive") and make it executable.
+
     cp pre-receive.sh yourrepo/hooks/pre-receive
     chmod +x yourrepo/hooks/pre-receive
+
+Configuration
+-------------
+
+The maximum filesize can be configured in the git config of the individual
+repositories. Setting a value of 0 disables the check.
+
+    [hooks]
+    maxfilesize = 5m
 
 License
 -------
 
 git-max-filesize is distributed under the Apache License:, Version 2.0.
- 
+
 > Copyright 2017 mgIT GmbH.
 >
 > Licensed under the Apache License, Version 2.0 (the "License");
