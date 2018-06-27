@@ -45,24 +45,18 @@ function main() {
       continue
     fi
 
-    # check for new branches
-    local target="${oldref}..${newref}"
-    if [[ "$oldref" == "$NULLSHA" ]]; then
-      # try to find an existing ancestor
-      local fp
-      fp="$(find_ancestor "$newref")"
-      if [[ "$?" == 0 ]]; then
-        # use the existing ancestor as base
-        target="${fp}..${newref}"
-      else
-        # otherwise check all objects in that branch
-        target="${newref}"
-      fi
-    fi
-
     # find large objects
+    # check all objects from $oldref (possible $NULLSHA) to $newref, but
+    # skip all objects that have already been accepted (i.e. are referenced by
+    # another branch or tag).
+    local target
+    if [[ "$oldref" == "$NULLSHA" ]]; then
+      target="$newref"
+    else
+      target="${oldref}..${newref}"
+    fi
     local large_files
-    large_files="$(git rev-list --objects "$target" | \
+    large_files="$(git rev-list --objects "$target" --not --branches=\* --tags=\* | \
       git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize) %(rest)' | \
       awk -v maxbytes="$maxsize" '$3 > maxbytes { print $4 }')"
     if [[ "$?" != 0 ]]; then
@@ -86,60 +80,6 @@ function main() {
   done
 
   exit "$status"
-}
-
-# find a suitable ancestor to decide which objects to check
-function find_ancestor() {
-  local newref="$1"
-
-  # query all existing references
-  local refs
-  refs="$(git show-ref --heads -s)"
-  if [[ "$?" != 0 ]]; then
-    return "$EXIT_FAILURE"
-  fi
-
-  # check existing references for possible fork points
-  local fps=""
-  local ref
-  for ref in $refs; do
-    local fp
-    fp="$(git merge-base "$ref" "$newref")"
-    if [[ "$?" != 0 ]]; then
-      continue
-    fi
-
-    # update / replace existing fork points
-    local other
-    for other in $fps; do
-      local rval
-      git merge-base --is-ancestor "$fp" "$other"
-      rval="$?"
-      if [[ "$rval" == 0 ]]; then
-        # skip if current fork point is an ancestor
-        continue 2
-      elif [[ "$rval" == 1 ]]; then
-        # replace if current fork point is a successor
-        fps="$(echo ${fps/$other} ${fp})"
-        continue 2
-      else
-        # ignore errors
-        :
-      fi
-    done
-
-    # add fork point
-    fps="$(echo ${fps} ${fp})"
-  done
-
-  # select first fork point
-  # in the very rare case that multiple fork points are found that are not
-  # related to each other, simple choose the first one as a starting point.
-  if [[ -z "$fps" ]]; then
-    return "$EXIT_FAILURE"
-  fi
-  printf "%s\n" $fps | head -n 1
-  return "$EXIT_SUCCESS"
 }
 
 # get the maximum filesize configured for this repository or the default
