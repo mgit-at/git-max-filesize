@@ -46,16 +46,19 @@ function main() {
     fi
 
     # find large objects
-    local large_files
+    # check all objects from $oldref (possible $NULLSHA) to $newref, but
+    # skip all objects that have already been accepted (i.e. are referenced by
+    # another branch or tag).
+    local target
     if [[ "$oldref" == "$NULLSHA" ]]; then
-      large_files="$(git rev-list --objects "$newref" --not --branches=* | \
-        git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize) %(rest)' | \
-        awk -v maxbytes="$maxsize" '$3 > maxbytes { print $4 }')"
+      target="$newref"
     else
-      large_files="$(git rev-list --objects "${oldref}..${newref}" | \
-        git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize) %(rest)' | \
-        awk -v maxbytes="$maxsize" '$3 > maxbytes { print $4 }')"
+      target="${oldref}..${newref}"
     fi
+    local large_files
+    large_files="$(git rev-list --objects "$target" --not --branches=\* --tags=\* | \
+      git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize) %(rest)' | \
+      awk -v maxbytes="$maxsize" '$3 > maxbytes { print $4 }')"
     if [[ "$?" != 0 ]]; then
       echo "failed to check for large files in ref ${refname}"
       continue
