@@ -57,13 +57,14 @@ function main() {
     fi
     local large_files
     large_files="$(git rev-list --objects "$target" --not --branches=\* --tags=\* | \
-      git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize) %(rest)' | \
-      awk -v maxbytes="$maxsize" '$3 > maxbytes { print $4 }')"
+      git cat-file $'--batch-check=%(objectname)\t%(objecttype)\t%(objectsize)\t%(rest)' | \
+      awk -F '\t' -v maxbytes="$maxsize" '$3 > maxbytes' | cut -f 4-)"
     if [[ "$?" != 0 ]]; then
       echo "failed to check for large files in ref ${refname}"
       continue
     fi
 
+    IFS=$'\n'
     for file in $large_files; do
       if [[ "$status" == 0 ]]; then
         echo ""
