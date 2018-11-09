@@ -78,6 +78,7 @@ function main() {
       fi
       echo " - ${file} (ref: ${refname})"
     done
+    unset IFS
   done
 
   exit "$status"
